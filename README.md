@@ -9,5 +9,5 @@ also needs xdotool installed or it wont work!!
 git clone https://github.com/Xzyaihni/transformicedrawey
 cd transformicedrawey
 cargo b -r
-./target/release/transformicedrawey /path/to/ur/picture.png
+./target/release/drawey /path/to/ur/picture.png
 ```
