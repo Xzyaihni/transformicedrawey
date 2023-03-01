@@ -42,7 +42,10 @@ pub fn simplify_borders(lines: &[(i32, Line)], tolerance: f64) -> Vec<Line>
         }
     }).collect::<Vec<Line>>();
 
-    new_lines.push(previous_line);
+    if !lines.is_empty()
+    {
+        new_lines.push(previous_line);
+    }
 
     new_lines
 }

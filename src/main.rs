@@ -21,7 +21,7 @@ mod contour;
 mod drawer;
 
 
-fn filter_image(image: &GrayImage, kernel: [f64; 9]) -> GrayImage
+fn filter_image<const S: usize>(image: &GrayImage, kernel: &[f64], scale: f64) -> GrayImage
 {
     let mut out_image = image.clone();
 
@@ -31,33 +31,27 @@ fn filter_image(image: &GrayImage, kernel: [f64; 9]) -> GrayImage
         {
             let mut sum = 0.0;
 
-            let mut add_pixel = |o_x: i32, o_y: i32|
+            for k_y in 0..S
             {
-                let pixel = image.get_pixel(
-                    (x as i32 + o_x) as u32,
-                    (y as i32 + o_y) as u32
-                ).0[0] as f64 / 255.0;
+                for k_x in 0..S
+                {
+                    let (x, y) = (
+                        x as i32 + k_x as i32 - S as i32,
+                        y as i32 + k_y as i32 - S as i32
+                    );
 
-                sum += pixel * kernel[((o_y + 1) * 3 + (o_x + 1)) as usize];
-            };
+                    if x < 0 || x >= image.width() as i32 || y < 0 || y >= image.height() as i32
+                    {
+                        continue;
+                    }
 
-            let left_edge = x == 0;
-            let right_edge = x == (image.width() - 1);
+                    let pixel = image.get_pixel(x as u32, y as u32).0[0] as f64 / 255.0;
 
-            let top_edge = y == 0;
-            let bottom_edge = y == (image.height() - 1);
+                    sum += pixel * kernel[(k_y * S + k_x) as usize];
+                }
+            }
 
-            if !left_edge && !top_edge { add_pixel(-1, -1); }
-            if !top_edge { add_pixel(0, -1); }
-            if !right_edge && !top_edge { add_pixel(1, -1); }
-            if !left_edge { add_pixel(-1, 0); }
-            add_pixel(0, 0);
-            if !right_edge { add_pixel(1, 0); }
-            if !left_edge && !bottom_edge { add_pixel(-1, 1); }
-            if !bottom_edge { add_pixel(0, 1); }
-            if !right_edge && !bottom_edge { add_pixel(1, 1); }
-
-            let new_pixel = (sum.abs() * 127.0) as u8;
+            let new_pixel = (sum * scale * 255.0) as u8;
             out_image.put_pixel(x, y, [new_pixel].into());
         }
     }
@@ -65,8 +59,10 @@ fn filter_image(image: &GrayImage, kernel: [f64; 9]) -> GrayImage
     out_image
 }
 
-fn combine_edges(mut img0: GrayImage, img1: GrayImage) -> GrayImage
+fn combine_edges(mut img0: GrayImage, img1: GrayImage) -> (Vec<(f64, f64)>, GrayImage)
 {
+    let mut directions = Vec::new();
+
     for (o0, o1) in img0.pixels_mut().zip(img1.pixels())
     {
         let p0 = o0.0[0] as f64 / 255.0;
@@ -77,7 +73,7 @@ fn combine_edges(mut img0: GrayImage, img1: GrayImage) -> GrayImage
         *o0 = ([(new_pixel * 255.0) as u8]).into();
     }
 
-    img0
+    (directions, img0)
 }
 
 fn main()
@@ -99,19 +95,32 @@ fn main()
     let image = image.grayscale();
 
     let gray_image = image.into_luma8();
-    let image_horiz = filter_image(&gray_image,
-        [1.0, 0.0, -1.0,
-        2.0, 0.0, -2.0,
-        1.0, 0.0, -1.0]);
+    let blurred_image = filter_image::<5>(&gray_image,
+        &[2.0, 4.0, 5.0, 4.0, 2.0,
+        4.0, 9.0, 12.0, 9.0, 4.0,
+        5.0, 12.0, 15.0, 12.0, 5.0,
+        4.0, 9.0, 12.0, 9.0, 4.0,
+        2.0, 4.0, 5.0, 4.0, 2.0
+        ], 1.0 / 159.0);
 
-    let image_vert = filter_image(&gray_image,
-        [1.0, 2.0, 1.0,
-        0.0, 0.0, 0.0,
-        -1.0, -2.0, -1.0]);
+    let image_horiz = filter_image::<5>(&blurred_image,
+        &[1.0, 0.0, 0.0, 0.0, -1.0,
+        2.0, 0.0, 0.0, 0.0, -2.0,
+        3.0, 0.0, 0.0, 0.0, -3.0,
+        2.0, 0.0, 0.0, 0.0, -2.0,
+        1.0, 0.0, 0.0, 0.0, -1.0], 1.0);
 
-    let combined_gradient = combine_edges(image_horiz, image_vert);
+    let image_vert = filter_image::<3>(&blurred_image,
+        &[1.0, 2.0, 3.0, 2.0, 1.0,
+        0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0,
+        -1.0, -2.0, -3.0, -2.0, -1.0], 1.0);
 
-    let tolerance = 0.05;
+    let (directions, combined_gradient) = combine_edges(image_horiz, image_vert);
+
+
+    let tolerance = 0.01;
     let lines = contour::contours(combined_gradient, tolerance);
 
     let delay = 0.03;
