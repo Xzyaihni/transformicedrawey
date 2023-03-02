@@ -307,10 +307,10 @@ fn main()
 
     let (width, height) = if image_width > image_height
     {
-        (1.0, image_width as f64 / image_height as f64)
+        (1.0, image_height as f64 / image_width as f64)
     } else
     {
-        (image_height as f64 / image_width as f64, 1.0)
+        (image_width as f64 / image_height as f64, 1.0)
     };
 
     let (offset_x, offset_y) = ((1.0 - width) / 2.0, (1.0 - height) / 2.0);
