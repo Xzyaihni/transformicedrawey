@@ -13,17 +13,25 @@ pub struct LineDrawer
     window_y: f64,
     width: f64,
     height: f64,
-    delay: Duration
+    delay: Duration,
+    verbose: bool
 }
 
 impl LineDrawer
 {
-    pub fn new(name: &str, delay: f64) -> Option<Self>
+    pub fn new(name: &str, delay: f64, verbose: bool) -> Option<Self>
     {
         let window_id = Self::window_id(name)?;
 
         let (window_x, window_y) = Self::window_position(window_id);
         let (width, height) = Self::window_size(window_id);
+
+        if verbose
+        {
+            eprintln!("window id: {window_id}");
+            eprintln!("window x: {window_x}, window y: {window_y}");
+            eprintln!("window width: {width}, window height: {height}");
+        }
 
         Some(Self{
             window_id,
@@ -31,7 +39,8 @@ impl LineDrawer
             window_y: window_y as f64,
             width: width as f64,
             height: height as f64,
-            delay: Duration::from_secs_f64(delay)
+            delay: Duration::from_secs_f64(delay),
+            verbose
         })
     }
 
@@ -127,6 +136,11 @@ impl LineDrawer
 
     pub fn draw_line(&self, x0: f64, y0: f64, x1: f64, y1: f64)
     {
+        if self.verbose
+        {
+            eprintln!("drawing a line from (x: {x0:.3}, y: {y0:.3}) to (x: {x1:.3}, y: {y1:.3})");
+        }
+
         self.mouse_move(x0, y0);
 
         thread::sleep(self.delay);

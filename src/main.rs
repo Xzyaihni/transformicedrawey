@@ -3,7 +3,7 @@ use std::{
     process
 };
 
-use argparse::{ArgumentParser, Store};
+use argparse::{ArgumentParser, Store, StoreTrue};
 
 use image::GrayImage;
 
@@ -204,6 +204,7 @@ fn main()
     let mut path = String::new();
     let mut tolerance = 0.005;
     let mut delay = 0.03;
+    let mut verbose = false;
 
     {
         let mut parser = ArgumentParser::new();
@@ -217,6 +218,11 @@ fn main()
         parser.refer(&mut delay)
             .add_option(&["-d", "--delay"], Store,
                 "delay between each action in seconds (default 0.03)"
+            );
+
+        parser.refer(&mut verbose)
+            .add_option(&["-v", "--verbose"], StoreTrue,
+                "verbose output"
             );
 
         parser.refer(&mut path)
@@ -278,26 +284,11 @@ fn main()
 
     let time_to_draw = lines.len() as f64 * delay_per_line;
 
-    let line_drawer = LineDrawer::new("Transformice", delay).unwrap_or_else(||
+    let line_drawer = LineDrawer::new("Transformice", delay, verbose).unwrap_or_else(||
     {
         eprintln!("window not found, is it open and visible?");
         process::exit(3);
     });
-
-    println!("with {} lines, with {:.0} ms per line delay", lines.len(), delay_per_line * 1000.0);
-    println!("it will take {:.1} seconds to draw it", time_to_draw);
-    println!("you can quit at any time by pressing Q");
-    println!("proceed? [y/N]");
-    let stdin = io::stdin();
-
-    let mut reply = "n".to_owned();
-    stdin.read_line(&mut reply).unwrap();
-
-    let reply = reply.trim();
-    if reply.to_lowercase().as_str() == "n"
-    {
-        return;
-    }
 
     let (canvas_x, canvas_y) = (0.184, 0.063);
 
@@ -313,8 +304,29 @@ fn main()
 
     let (offset_x, offset_y) = ((1.0 - width) / 2.0, (1.0 - height) / 2.0);
 
+    if verbose
+    {
+        eprintln!("offset_x: {offset_x:.3}, offset_y: {offset_y:.3}");
+        eprintln!("width: {width:.3}, height: {height:.3}");
+    }
+
     let (canvas_x, canvas_y) = (canvas_x + offset_x * max_width, canvas_y + offset_y * max_height);
     let (width, height) = (max_width * width, max_height * height);
+
+    println!("with {} lines, with {:.0} ms per line delay", lines.len(), delay_per_line * 1000.0);
+    println!("it will take {:.1} seconds to draw it", time_to_draw);
+    println!("you can quit at any time by pressing Q");
+    println!("proceed? [y/N]");
+    let stdin = io::stdin();
+
+    let mut reply = "n".to_owned();
+    stdin.read_line(&mut reply).unwrap();
+
+    let reply = reply.trim();
+    if reply.to_lowercase().as_str() == "n"
+    {
+        return;
+    }
 
     line_drawer.foreground();
 
