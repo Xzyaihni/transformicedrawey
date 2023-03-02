@@ -1,8 +1,9 @@
 use std::{
-    env,
     io,
     process
 };
+
+use argparse::{ArgumentParser, Store};
 
 use image::GrayImage;
 
@@ -200,12 +201,32 @@ fn edge_thinning(gradient: &FloatImage, directions: &FloatImage) -> FloatImage
 
 fn main()
 {
-    let path = env::args().nth(1).unwrap_or_else(||
+    let mut path = String::new();
+    let mut tolerance = 0.005;
+    let mut delay = 0.03;
+
     {
-        eprintln!("plz give path to the image as argument");
-        eprintln!("usage: {} path/to/image", env::args().next().unwrap());
-        process::exit(1);
-    });
+        let mut parser = ArgumentParser::new();
+
+        parser.refer(&mut tolerance)
+            .add_option(&["-t", "--tolerance"],
+                Store,
+                "tolerance in radians for line angles (default 0.005)"
+            );
+
+        parser.refer(&mut delay)
+            .add_option(&["-d", "--delay"], Store,
+                "delay between each action in seconds (default 0.03)"
+            );
+
+        parser.refer(&mut path)
+            .add_option(&["-i", "--input"], Store, "path to the image file")
+            .add_argument("image_path", Store, "path to the image file")
+            .required();
+
+        parser.parse_args_or_exit();
+    }
+
 
     let image = image::open(path.clone()).unwrap_or_else(|err|
     {
@@ -250,12 +271,9 @@ fn main()
     let (directions, gradient) = combine_edges(&image_horiz, &image_vert);
     let thinned = edge_thinning(&gradient, &directions);
 
-    let tolerance = 0.01;
-
     let mut lines = contour::contours(&thinned, tolerance);
     lines.sort_by(|x, y| y.magnitude().total_cmp(&x.magnitude()));
 
-    let delay = 0.03;
     let delay_per_line = delay * 4.0;
 
     let time_to_draw = lines.len() as f64 * delay_per_line;

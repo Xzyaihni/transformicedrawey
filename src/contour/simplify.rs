@@ -8,6 +8,7 @@ fn close_enough(a: f64, b: f64, tolerance: f64) -> bool
 
 pub fn simplify_borders(lines: &[(i32, Line)], tolerance: f64) -> Vec<Line>
 {
+    let mut start_angle = 0.0;
     let mut previous_index = 0;
     let mut previous_line = lines.get(0).map(|(_, l)| l.clone())
         .unwrap_or_else(|| Line::new(Pos::new(0.0, 0.0), Pos::new(0.0, 0.0)));
@@ -20,7 +21,7 @@ pub fn simplify_borders(lines: &[(i32, Line)], tolerance: f64) -> Vec<Line>
         };
 
         let same_angle = close_enough(
-            angle_of(previous_line.p0, previous_line.p1),
+            start_angle,
             angle_of(line.p0, line.p1),
             tolerance
         );
@@ -37,6 +38,7 @@ pub fn simplify_borders(lines: &[(i32, Line)], tolerance: f64) -> Vec<Line>
         {
             let return_line = Some(previous_line.clone());
             previous_line = line.clone();
+            start_angle = angle_of(previous_line.p0, previous_line.p1);
 
             return_line
         }
