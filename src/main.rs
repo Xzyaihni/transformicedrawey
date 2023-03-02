@@ -21,23 +21,117 @@ mod contour;
 mod drawer;
 
 
-fn filter_image<const S: usize>(image: &GrayImage, kernel: &[f64], scale: f64) -> GrayImage
+#[derive(Debug, Clone)]
+pub struct FloatImage
 {
-    let mut out_image = image.clone();
+    data: Vec<f64>,
+    width: usize,
+    height: usize
+}
+
+impl FloatImage
+{
+    pub fn new(data: Vec<f64>, width: usize, height: usize) -> Self
+    {
+        Self{data, width, height}
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> Option<f64>
+    {
+        self.data.get(y * self.width + x).copied()
+    }
+
+    pub fn fget(&self, x: f64, y: f64) -> f64
+    {
+        let (x_low, x_high, x_a) = Self::interp(x);
+        let (y_low, y_high, y_a) = Self::interp(y);
+
+        let top_left = self.get(x_low, y_low).unwrap_or(0.0);
+        let top_right = self.get(x_high, y_low).unwrap_or(0.0);
+
+        let bottom_left = self.get(x_low, y_high).unwrap_or(0.0);
+        let bottom_right = self.get(x_high, y_high).unwrap_or(0.0);
+
+        Self::lerp(
+            Self::lerp(top_left, top_right, x_a),
+            Self::lerp(bottom_left, bottom_right, x_a),
+            y_a
+        )
+    }
+
+    fn lerp(x: f64, y: f64, a: f64) -> f64
+    {
+        x * (1.0 - a) + y * a
+    }
+
+    fn interp(n: f64) -> (usize, usize, f64)
+    {
+        let (n_low, n_high) = (n.floor(), n.ceil());
+        let a = n - n_low;
+
+        (n_low as usize, n_high as usize, a)
+    }
+
+    pub fn data(&self) -> &[f64]
+    {
+        &self.data
+    }
+
+    pub fn data_mut(&mut self) -> &mut Vec<f64>
+    {
+        &mut self.data
+    }
+
+    pub fn push(&mut self, value: f64)
+    {
+        self.data.push(value);
+    }
+
+    pub fn width(&self) -> usize
+    {
+        self.width
+    }
+
+    pub fn height(&self) -> usize
+    {
+        self.height
+    }
+
+    pub fn save(&self, filename: &str)
+    {
+        GrayImage::from_raw(
+            self.width() as u32,
+            self.height() as u32,
+            self.data.iter().map(|v| (v * 255.0) as u8).collect()
+        ).unwrap().save(filename).unwrap();
+    }
+}
+
+fn filter_image<const S: usize>(image: &FloatImage, kernel: &[f64], average: bool) -> FloatImage
+{
+    if (S * S) != kernel.len()
+    {
+        panic!("kernel size doesnt match");
+    }
+
+    let half_s = S / 2;
+
+    let mut out_image = FloatImage::new(Vec::new(), image.width(), image.height());
 
     for y in 0..image.height()
     {
         for x in 0..image.width()
         {
             let mut sum = 0.0;
+            let mut scale = 0.0;
 
             for k_y in 0..S
             {
                 for k_x in 0..S
                 {
                     let (x, y) = (
-                        x as i32 + k_x as i32 - S as i32,
-                        y as i32 + k_y as i32 - S as i32
+                        x as i32 + k_x as i32 - half_s as i32,
+                        y as i32 + k_y as i32 - half_s as i32
                     );
 
                     if x < 0 || x >= image.width() as i32 || y < 0 || y >= image.height() as i32
@@ -45,35 +139,63 @@ fn filter_image<const S: usize>(image: &GrayImage, kernel: &[f64], scale: f64) -
                         continue;
                     }
 
-                    let pixel = image.get_pixel(x as u32, y as u32).0[0] as f64 / 255.0;
+                    let kernel_value = kernel[(k_y * S + k_x) as usize];
+                    scale += kernel_value;
 
-                    sum += pixel * kernel[(k_y * S + k_x) as usize];
+                    let pixel = image.get(x as usize, y as usize).unwrap();
+
+                    sum += pixel * kernel_value;
                 }
             }
 
-            let new_pixel = (sum * scale * 255.0) as u8;
-            out_image.put_pixel(x, y, [new_pixel].into());
+            let pixel = if average { sum / scale } else { sum };
+            out_image.push(pixel);
         }
     }
 
     out_image
 }
 
-fn combine_edges(mut img0: GrayImage, img1: GrayImage) -> (Vec<(f64, f64)>, GrayImage)
+fn combine_edges(img0: &FloatImage, img1: &FloatImage) -> (FloatImage, FloatImage)
 {
-    let mut directions = Vec::new();
+    let mut directions = FloatImage::new(Vec::new(), img0.width(), img0.height());
+    let mut gradients = FloatImage::new(Vec::new(), img0.width(), img0.height());
 
-    for (o0, o1) in img0.pixels_mut().zip(img1.pixels())
+    for (p0, p1) in img0.data().iter().zip(img1.data())
     {
-        let p0 = o0.0[0] as f64 / 255.0;
-        let p1 = o1.0[0] as f64 / 255.0;
-
-        let new_pixel = (p0 * p0 + p1 * p1).sqrt();
-
-        *o0 = ([(new_pixel * 255.0) as u8]).into();
+        directions.push(p1.atan2(*p0));
+        gradients.push(p0.hypot(*p1));
     }
 
-    (directions, img0)
+    (directions, gradients)
+}
+
+fn edge_thinning(gradient: &FloatImage, directions: &FloatImage) -> FloatImage
+{
+    let mut thinned = FloatImage::new(Vec::new(), gradient.width(), gradient.height());
+
+    for y in 0..gradient.height()
+    {
+        for x in 0..gradient.width()
+        {
+            let current_pixel = gradient.get(x, y).unwrap();
+            let direction = directions.get(x, y).unwrap();
+
+            let (x, y) = (x as f64, y as f64);
+            let (d_x, d_y) = (direction.cos(), direction.sin());
+
+            let positive_pixel = gradient.fget(x + d_x, y + d_y);
+            let negative_pixel = gradient.fget(x - d_x, y - d_y);
+
+            let keep = current_pixel > positive_pixel && current_pixel > negative_pixel;
+
+            let new_pixel = if keep { current_pixel } else { 0.0 };
+
+            thinned.push(new_pixel);
+        }
+    }
+
+    thinned
 }
 
 fn main()
@@ -95,33 +217,41 @@ fn main()
     let image = image.grayscale();
 
     let gray_image = image.into_luma8();
-    let blurred_image = filter_image::<5>(&gray_image,
+    let float_image = FloatImage::new(
+        gray_image.pixels().map(|v| v.0[0] as f64 / 255.0).collect(),
+        gray_image.width() as usize,
+        gray_image.height() as usize
+    );
+
+    let blurred_image = filter_image::<5>(&float_image,
         &[2.0, 4.0, 5.0, 4.0, 2.0,
         4.0, 9.0, 12.0, 9.0, 4.0,
         5.0, 12.0, 15.0, 12.0, 5.0,
         4.0, 9.0, 12.0, 9.0, 4.0,
         2.0, 4.0, 5.0, 4.0, 2.0
-        ], 1.0 / 159.0);
+        ], true);
 
     let image_horiz = filter_image::<5>(&blurred_image,
         &[1.0, 0.0, 0.0, 0.0, -1.0,
         2.0, 0.0, 0.0, 0.0, -2.0,
         3.0, 0.0, 0.0, 0.0, -3.0,
         2.0, 0.0, 0.0, 0.0, -2.0,
-        1.0, 0.0, 0.0, 0.0, -1.0], 1.0);
+        1.0, 0.0, 0.0, 0.0, -1.0], false);
 
-    let image_vert = filter_image::<3>(&blurred_image,
+    let image_vert = filter_image::<5>(&blurred_image,
         &[1.0, 2.0, 3.0, 2.0, 1.0,
         0.0, 0.0, 0.0, 0.0, 0.0,
         0.0, 0.0, 0.0, 0.0, 0.0,
         0.0, 0.0, 0.0, 0.0, 0.0,
-        -1.0, -2.0, -3.0, -2.0, -1.0], 1.0);
+        -1.0, -2.0, -3.0, -2.0, -1.0], false);
 
-    let (directions, combined_gradient) = combine_edges(image_horiz, image_vert);
-
+    let (directions, gradient) = combine_edges(&image_horiz, &image_vert);
+    let thinned = edge_thinning(&gradient, &directions);
 
     let tolerance = 0.01;
-    let lines = contour::contours(combined_gradient, tolerance);
+
+    let mut lines = contour::contours(&thinned, tolerance);
+    lines.sort_by(|x, y| y.magnitude().total_cmp(&x.magnitude()));
 
     let delay = 0.03;
     let delay_per_line = delay * 4.0;

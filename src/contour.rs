@@ -1,4 +1,6 @@
-use image::GrayImage;
+use std::ops::Sub;
+
+use super::FloatImage;
 
 mod simplify;
 
@@ -16,6 +18,13 @@ impl Line
     {
         Self{p0, p1}
     }
+
+    pub fn magnitude(&self) -> f64
+    {
+        let point = self.p0 - self.p1;
+
+        point.x.hypot(point.y)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -30,6 +39,16 @@ impl Pos
     pub fn new(x: f64, y: f64) -> Self
     {
         Self{x, y}
+    }
+}
+
+impl Sub for Pos
+{
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output
+    {
+        Self{x: self.x - other.x, y: self.y - other.y}
     }
 }
 
@@ -112,12 +131,12 @@ impl BinaryImage
     }
 }
 
-pub fn contours(image: GrayImage, tolerance: f64) -> Vec<Line>
+pub fn contours(image: &FloatImage, tolerance: f64) -> Vec<Line>
 {
     let mut image = BinaryImage::new(
-        image.pixels().map(|pixel|
+        image.data.iter().map(|pixel|
         {
-            if pixel.0[0] > 127 {1} else {0}
+            if *pixel > 0.5 {1} else {0}
         }),
         image.width() as usize, image.height() as usize
     );
