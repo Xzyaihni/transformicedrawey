@@ -205,6 +205,7 @@ fn main()
     let mut tolerance = 0.005;
     let mut delay = 0.03;
     let mut verbose = false;
+    let mut save_edges = false;
 
     {
         let mut parser = ArgumentParser::new();
@@ -223,6 +224,11 @@ fn main()
         parser.refer(&mut verbose)
             .add_option(&["-v", "--verbose"], StoreTrue,
                 "verbose output"
+            );
+
+        parser.refer(&mut save_edges)
+            .add_option(&["-s", "--save"], StoreTrue,
+                "save edges of a picture as edges.png"
             );
 
         parser.refer(&mut path)
@@ -276,6 +282,11 @@ fn main()
 
     let (directions, gradient) = combine_edges(&image_horiz, &image_vert);
     let thinned = edge_thinning(&gradient, &directions);
+
+    if save_edges
+    {
+        thinned.save("edges.png");
+    }
 
     let mut lines = contour::contours(&thinned, tolerance);
     lines.sort_by(|x, y| y.magnitude().total_cmp(&x.magnitude()));
