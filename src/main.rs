@@ -215,12 +215,14 @@ fn main()
     });
 
     let image = image.grayscale();
+    let image_width = image.width() as usize;
+    let image_height = image.height() as usize;
 
     let gray_image = image.into_luma8();
     let float_image = FloatImage::new(
         gray_image.pixels().map(|v| v.0[0] as f64 / 255.0).collect(),
-        gray_image.width() as usize,
-        gray_image.height() as usize
+        image_width,
+        image_height
     );
 
     let blurred_image = filter_image::<5>(&float_image,
@@ -281,7 +283,20 @@ fn main()
 
     let (canvas_x, canvas_y) = (0.184, 0.063);
 
-    let (width, height) = (0.634, 0.575);
+    let (max_width, max_height) = (0.634, 0.575);
+
+    let (width, height) = if image_width > image_height
+    {
+        (image_height as f64 / image_width as f64, 1.0)
+    } else
+    {
+        (1.0, image_width as f64 / image_height as f64)
+    };
+
+    let (offset_x, offset_y) = ((1.0 - width) / 2.0, (1.0 - height) / 2.0);
+
+    let (canvas_x, canvas_y) = (canvas_x + offset_x * max_width, canvas_y + offset_y * max_height);
+    let (width, height) = (max_width * width, max_height * height);
 
     line_drawer.foreground();
 
