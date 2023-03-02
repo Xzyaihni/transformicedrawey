@@ -22,7 +22,7 @@ pub fn simplify_borders(lines: &[(i32, Line)], tolerance: f64) -> Vec<Line>
 
         let same_angle = close_enough(
             start_angle,
-            angle_of(line.p0, line.p1),
+            angle_of(previous_line.p0, line.p1),
             tolerance
         );
 
