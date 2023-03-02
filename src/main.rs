@@ -319,11 +319,11 @@ fn main()
     println!("proceed? [y/N]");
     let stdin = io::stdin();
 
-    let mut reply = "n".to_owned();
+    let mut reply = String::new();
     stdin.read_line(&mut reply).unwrap();
 
     let reply = reply.trim();
-    if reply.to_lowercase().as_str() == "n"
+    if reply.to_lowercase().as_str() != "y"
     {
         return;
     }
