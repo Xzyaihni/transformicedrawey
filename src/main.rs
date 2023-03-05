@@ -207,6 +207,9 @@ fn main()
     let mut verbose = false;
     let mut save_edges = false;
 
+    let (mut canvas_x, mut canvas_y) = (0.184, 0.063);
+    let (mut max_width, mut max_height) = (0.634, 0.575);
+
     {
         let mut parser = ArgumentParser::new();
 
@@ -231,6 +234,26 @@ fn main()
                 "save edges of a picture as edges.png"
             );
 
+        parser.refer(&mut canvas_x)
+            .add_option(&["-X", "--canvasx"], Store,
+            "canvas x starting point (default 0.184)"
+        );
+        
+        parser.refer(&mut canvas_y)
+            .add_option(&["-Y", "--canvasy"], Store,
+            "canvas y starting point (default 0.063)"
+        );
+
+        parser.refer(&mut max_width)
+            .add_option(&["-W", "--width"], Store,
+            "canvas width (0.634)"
+        );
+
+        parser.refer(&mut max_height)
+            .add_option(&["-H", "--height"], Store,
+            "canvas height (0.575)"
+        );
+        
         parser.refer(&mut path)
             .add_option(&["-i", "--input"], Store, "path to the image file")
             .add_argument("image_path", Store, "path to the image file")
@@ -300,10 +323,6 @@ fn main()
         eprintln!("window not found, is it open and visible?");
         process::exit(3);
     });
-
-    let (canvas_x, canvas_y) = (0.184, 0.063);
-
-    let (max_width, max_height) = (0.634, 0.575);
 
     let (width, height) = if image_width > image_height
     {
