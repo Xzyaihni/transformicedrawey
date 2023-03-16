@@ -332,6 +332,30 @@ fn main()
         (image_width as f64 / image_height as f64, 1.0)
     };
 
+    let (width, height) = if max_width > max_height
+    {
+        let ratio = max_width / max_height;
+
+        if width > ratio
+        {
+            (1.0, 2.0 - (width / ratio))
+        } else
+        {
+            (width / ratio, 1.0)
+        }
+    } else
+    {
+        let ratio = max_height / max_width;
+
+        if height > ratio
+        {
+            (2.0 - (height / ratio), 1.0)
+        } else
+        {
+            (1.0, height / ratio)
+        }
+    };
+
     let (offset_x, offset_y) = ((1.0 - width) / 2.0, (1.0 - height) / 2.0);
 
     if verbose
@@ -341,7 +365,7 @@ fn main()
     }
 
     let (canvas_x, canvas_y) = (canvas_x + offset_x * max_width, canvas_y + offset_y * max_height);
-    let (width, height) = (max_width * width, max_height * height);
+    let (width, height) = (width * max_width, height * max_height);
 
     println!("with {} lines, with {:.0} ms per line delay", lines.len(), delay_per_line * 1000.0);
     println!("it will take {:.1} seconds to draw it", time_to_draw);
