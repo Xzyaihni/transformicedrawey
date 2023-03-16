@@ -213,6 +213,8 @@ fn main()
     let mut verbose = false;
     let mut save_edges = false;
 
+    let mut window_name = "Transformice".to_owned();
+
     let (mut canvas_x, mut canvas_y) = (0.184, 0.063);
     let (mut max_width, mut max_height) = (0.634, 0.575);
 
@@ -238,6 +240,11 @@ fn main()
         parser.refer(&mut save_edges)
             .add_option(&["-s", "--save"], StoreTrue,
                 "save edges of a picture as edges.png"
+            );
+
+        parser.refer(&mut window_name)
+            .add_option(&["-w", "--window"], Store,
+                "window name (default Transformice)"
             );
 
         parser.refer(&mut canvas_x)
@@ -325,42 +332,23 @@ fn main()
         curve.len() as f64 * delay + delay
     }).sum();
 
-    let line_drawer = LineDrawer::new("Transformice", delay, verbose).unwrap_or_else(||
+    let line_drawer = LineDrawer::new(&window_name, delay, verbose).unwrap_or_else(||
     {
         eprintln!("window not found, is it open and visible?");
         process::exit(3);
     });
 
-    let (width, height) = if image_width > image_height
+    let canvas_aspect = max_width / max_height;
+
+    let width = image_width as f64 * canvas_aspect;
+    let height = image_height as f64 * canvas_aspect;
+
+    let (width, height) = if width > height
     {
-        (1.0, image_height as f64 / image_width as f64)
+        (1.0, height / width)
     } else
     {
-        (image_width as f64 / image_height as f64, 1.0)
-    };
-
-    let (width, height) = if max_width > max_height
-    {
-        let ratio = max_width / max_height;
-
-        if width > ratio
-        {
-            (1.0, 2.0 - (width / ratio))
-        } else
-        {
-            (width / ratio, 1.0)
-        }
-    } else
-    {
-        let ratio = max_height / max_width;
-
-        if height > ratio
-        {
-            (2.0 - (height / ratio), 1.0)
-        } else
-        {
-            (1.0, height / ratio)
-        }
+        (width / height, 1.0)
     };
 
     let (offset_x, offset_y) = ((1.0 - width) / 2.0, (1.0 - height) / 2.0);
