@@ -204,7 +204,7 @@ fn edge_thinning(gradient: &FloatImage, directions: &FloatImage) -> FloatImage
 fn main()
 {
     let mut path = String::new();
-    let mut epsilon = 0.001;
+    let mut epsilon = 0.01;
     let mut delay = 0.03;
     let mut verbose = false;
     let mut save_edges = false;
@@ -218,7 +218,7 @@ fn main()
         parser.refer(&mut epsilon)
             .add_option(&["-e", "--epsilon"],
                 Store,
-                "epsilon for line simplification (default 0.001)"
+                "epsilon for line simplification (default 0.01)"
             );
 
         parser.refer(&mut delay)
