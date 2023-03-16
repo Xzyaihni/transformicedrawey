@@ -1,4 +1,4 @@
-use std::ops::Sub;
+use std::ops::{Index, Sub};
 
 use super::FloatImage;
 
@@ -6,24 +6,46 @@ mod simplify;
 
 
 #[derive(Debug, Clone)]
-pub struct Line
+pub struct Curve
 {
-    pub p0: Pos,
-    pub p1: Pos
+    points: Vec<Pos>
 }
 
-impl Line
+impl Curve
 {
-    pub fn new(p0: Pos, p1: Pos) -> Self
+    pub fn new(points: Vec<Pos>) -> Self
     {
-        Self{p0, p1}
+        Self{points}
     }
 
-    pub fn magnitude(&self) -> f64
+    pub fn append(&mut self, other: &mut Self)
     {
-        let point = self.p0 - self.p1;
+        self.points.append(&mut other.points);
+    }
 
-        point.x.hypot(point.y)
+    pub fn part(&self, start: usize, end: usize) -> Self
+    {
+        Self::new(self.points[start..end].to_vec())
+    }
+
+    pub fn len(&self) -> usize
+    {
+        self.points.len()
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item=Pos>
+    {
+        self.points.into_iter()
+    }
+}
+
+impl Index<usize> for Curve
+{
+    type Output = Pos;
+
+    fn index(&self, index: usize) -> &Self::Output
+    {
+        &self.points[index]
     }
 }
 
@@ -40,6 +62,11 @@ impl Pos
     {
         Self{x, y}
     }
+
+    pub fn magnitude(&self) -> f64
+    {
+        self.x.hypot(self.y)
+    }
 }
 
 impl Sub for Pos
@@ -54,9 +81,8 @@ impl Sub for Pos
 
 struct BinaryImage
 {
-    lines: Vec<(i32, Line)>,
-    last_point: Pos,
-    last_line: i32,
+    points: Vec<(i32, Pos)>,
+    last_index: i32,
     data: Vec<i32>,
     width: usize,
     height: usize
@@ -67,9 +93,8 @@ impl BinaryImage
     pub fn new(pixels: impl Iterator<Item=i32>, width: usize, height: usize) -> Self
     {
         Self{
-            lines: Vec::new(),
-            last_point: Pos::new(0.0, 0.0),
-            last_line: 0,
+            points: Vec::new(),
+            last_index: 0,
             data: pixels.collect(),
             width,
             height
@@ -94,13 +119,12 @@ impl BinaryImage
             self.data[index] = pixel;
 
             let pos = Pos::new(x as f64 / self.width as f64, y as f64 / self.height as f64);
-            if self.last_line == pixel
+            if self.last_index == pixel
             {
-                self.lines.push((pixel, Line::new(self.last_point, pos)));
+                self.points.push((pixel, pos));
             }
 
-            self.last_point = pos;
-            self.last_line = pixel;
+            self.last_index = pixel;
         }
     }
 
@@ -115,9 +139,27 @@ impl BinaryImage
         }
     }
 
-    pub fn lines(&self) -> &[(i32, Line)]
+    pub fn curves(&self) -> Vec<Curve>
     {
-        &self.lines
+        let mut curves = Vec::new();
+
+        let mut points = self.points.iter().cloned().peekable();
+        while points.peek().is_some()
+        {
+            let mut curve = Vec::new();
+            while let Some((index, pos)) = points.next()
+            {
+                curve.push(pos);
+                if points.peek().map(|v| v.0 != index).unwrap_or(true)
+                {
+                    break;
+                }
+            }
+
+            curves.push(Curve::new(curve));
+        }
+
+        curves
     }
 
     pub fn width(&self) -> usize
@@ -131,7 +173,7 @@ impl BinaryImage
     }
 }
 
-pub fn contours(image: &FloatImage, tolerance: f64) -> Vec<Line>
+pub fn contours(image: &FloatImage, epsilon: f64) -> Vec<Curve>
 {
     let mut image = BinaryImage::new(
         image.data.iter().map(|pixel|
@@ -176,7 +218,7 @@ pub fn contours(image: &FloatImage, tolerance: f64) -> Vec<Line>
         }
     }
 
-    simplify::simplify_borders(image.lines(), tolerance)
+    simplify::simplify_borders(image.curves(), epsilon)
 }
 
 struct Neighbors

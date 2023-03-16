@@ -5,6 +5,10 @@ use std::{
     process::Command
 };
 
+use crate::contour::{
+    Pos
+};
+
 
 pub struct LineDrawer
 {
@@ -134,14 +138,9 @@ impl LineDrawer
         outputs.trim().parse().ok()
     }
 
-    pub fn draw_line(&self, x0: f64, y0: f64, x1: f64, y1: f64)
+    pub fn draw_curve(&self, mut curve: impl Iterator<Item=Pos>)
     {
-        if self.verbose
-        {
-            eprintln!("drawing a line from (x: {x0:.3}, y: {y0:.3}) to (x: {x1:.3}, y: {y1:.3})");
-        }
-
-        self.mouse_move(x0, y0);
+        self.mouse_move(curve.next().unwrap());
 
         thread::sleep(self.delay);
 
@@ -149,7 +148,32 @@ impl LineDrawer
 
         thread::sleep(self.delay);
 
-        self.mouse_move(x1, y1);
+        self.mouse_move(curve.next().unwrap());
+
+        curve.for_each(|point|
+        {
+            thread::sleep(self.delay);
+
+            self.mouse_move(point);
+        });
+
+        thread::sleep(self.delay);
+
+        self.mouse_up();
+    }
+
+    #[allow(dead_code)]
+    pub fn draw_line(&self, p0: Pos, p1: Pos)
+    {
+        self.mouse_move(p0);
+
+        thread::sleep(self.delay);
+
+        self.mouse_down();
+
+        thread::sleep(self.delay);
+
+        self.mouse_move(p1);
 
         thread::sleep(self.delay);
 
@@ -174,12 +198,17 @@ impl LineDrawer
             .unwrap().wait();
     }
 
-    fn mouse_move(&self, x: f64, y: f64)
+    fn mouse_move(&self, point: Pos)
     {
         let (x, y) = (
-            (x * self.width + self.window_x) as usize,
-            (y * self.height + self.window_y) as usize
+            (point.x * self.width + self.window_x) as usize,
+            (point.y * self.height + self.window_y) as usize
         );
+
+        if self.verbose
+        {
+            eprintln!("moving mouse to: {x:.3}, {y:.3}");
+        }
 
         let _ = Command::new("xdotool")
             .args(["mousemove", &format!("{x}"), &format!("{y}")])

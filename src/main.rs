@@ -1,6 +1,8 @@
 use std::{
     io,
-    process
+    thread,
+    process,
+    time::Duration
 };
 
 use argparse::{ArgumentParser, Store, StoreTrue};
@@ -8,7 +10,7 @@ use argparse::{ArgumentParser, Store, StoreTrue};
 use image::GrayImage;
 
 use contour::{
-    Line
+    Pos
 };
 
 use drawer::LineDrawer;
@@ -202,7 +204,7 @@ fn edge_thinning(gradient: &FloatImage, directions: &FloatImage) -> FloatImage
 fn main()
 {
     let mut path = String::new();
-    let mut tolerance = 0.005;
+    let mut epsilon = 0.001;
     let mut delay = 0.03;
     let mut verbose = false;
     let mut save_edges = false;
@@ -213,10 +215,10 @@ fn main()
     {
         let mut parser = ArgumentParser::new();
 
-        parser.refer(&mut tolerance)
-            .add_option(&["-t", "--tolerance"],
+        parser.refer(&mut epsilon)
+            .add_option(&["-e", "--epsilon"],
                 Store,
-                "tolerance in radians for line angles (default 0.005)"
+                "epsilon for line simplification (default 0.001)"
             );
 
         parser.refer(&mut delay)
@@ -311,12 +313,13 @@ fn main()
         thinned.save("edges.png");
     }
 
-    let mut lines = contour::contours(&thinned, tolerance);
-    lines.sort_by(|x, y| y.magnitude().total_cmp(&x.magnitude()));
+    let mut curves = contour::contours(&thinned, epsilon);
+    curves.sort_by(|x, y| y.len().cmp(&x.len()));
 
-    let delay_per_line = delay * 4.0;
-
-    let time_to_draw = lines.len() as f64 * delay_per_line;
+    let time_to_draw: f64 = curves.iter().map(|curve|
+    {
+        curve.len() as f64 * delay + delay
+    }).sum();
 
     let line_drawer = LineDrawer::new("Transformice", delay, verbose).unwrap_or_else(||
     {
@@ -367,7 +370,7 @@ fn main()
     let (canvas_x, canvas_y) = (canvas_x + offset_x * max_width, canvas_y + offset_y * max_height);
     let (width, height) = (width * max_width, height * max_height);
 
-    println!("with {} lines, with {:.0} ms per line delay", lines.len(), delay_per_line * 1000.0);
+    println!("with {} curves", curves.len());
     println!("it will take {:.1} seconds to draw it", time_to_draw);
     println!("you can quit at any time by pressing Q");
     println!("proceed? [y/N]");
@@ -384,20 +387,29 @@ fn main()
 
     line_drawer.foreground();
 
-    let device_state = DeviceState::new();
-    for Line{p0, p1} in lines
+    let cancel_thread = thread::spawn(||
     {
-        if device_state.query_keymap().contains(&Keycode::Q)
+        let device_state = DeviceState::new();
+
+        loop
         {
-            println!("q press detected, aborting");
-            return;
+            if device_state.query_keymap().contains(&Keycode::Q)
+            {
+                println!("q press detected, aborting");
+                process::exit(1);
+            }
+
+            thread::sleep(Duration::from_millis(100));
         }
+    });
 
-        let map_point = |x, y| (canvas_x + x * width, canvas_y + y * height);
-
-        let (x0, y0) = map_point(p0.x, p0.y);
-        let (x1, y1) = map_point(p1.x, p1.y);
-
-        line_drawer.draw_line(x0, y0, x1, y1);
+    for curve in curves
+    {
+        line_drawer.draw_curve(curve.into_iter().map(|Pos{x, y}|
+        {
+            Pos::new(canvas_x + x * width, canvas_y + y * height)
+        }));
     }
+
+    cancel_thread.join().unwrap();
 }

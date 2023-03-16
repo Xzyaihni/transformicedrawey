@@ -1,51 +1,57 @@
-use super::{Line, Pos};
+use super::{Curve, Pos};
 
 
-fn close_enough(a: f64, b: f64, tolerance: f64) -> bool
+fn line_distance(point: Pos, p0: Pos, p1: Pos) -> f64
 {
-    (a - b).abs() < tolerance
+    let pdiff = p0 - point;
+    let diff = p1 - p0;
+
+    let line_distance = diff.magnitude();
+    let triangle_area = (diff.x * pdiff.y - pdiff.x * diff.y).abs();
+
+    triangle_area / line_distance
 }
 
-pub fn simplify_borders(lines: &[(i32, Line)], tolerance: f64) -> Vec<Line>
+pub fn simplify_curve(curve: Curve, epsilon: f64) -> Curve
 {
-    let mut previous_index = 0;
-    let mut previous_line = lines.get(0).map(|(_, l)| l.clone())
-        .unwrap_or_else(|| Line::new(Pos::new(0.0, 0.0), Pos::new(0.0, 0.0)));
+    let mut dmax = 0.0;
+    let mut index = 0;
 
-    let mut new_lines = lines.iter().cloned().filter_map(|(index, line)|
+    let last = curve.len() - 1;
+
+    for i in 1..curve.len()
     {
-        let angle_of = |p0: Pos, p1: Pos|
+        let d = line_distance(curve[i], curve[0], curve[last]);
+        if d > dmax
         {
-            p1.y.atan2(p1.x) - p0.y.atan2(p0.x)
-        };
-
-        let same_angle = close_enough(
-            angle_of(previous_line.p0, previous_line.p1),
-            angle_of(previous_line.p0, line.p1),
-            tolerance
-        );
-
-        let same_index = previous_index == index;
-        previous_index = index;
-
-        if same_index && same_angle
-        {
-            previous_line = Line::new(previous_line.p0, line.p1);
-
-            None
-        } else
-        {
-            let return_line = Some(previous_line.clone());
-            previous_line = line.clone();
-
-            return_line
+            index = i;
+            dmax = d;
         }
-    }).collect::<Vec<Line>>();
-
-    if !lines.is_empty()
-    {
-        new_lines.push(previous_line);
     }
 
-    new_lines
+    if dmax > epsilon
+    {
+        let mut recursive_one = simplify_curve(curve.part(0, index), epsilon);
+        let mut recursive_two = simplify_curve(curve.part(index, curve.len()), epsilon);
+
+        recursive_one.append(&mut recursive_two);
+
+        recursive_one
+    } else
+    {
+        Curve::new(vec![curve[0], curve[last]])
+    }
+}
+
+pub fn simplify_borders(curves: Vec<Curve>, epsilon: f64) -> Vec<Curve>
+{
+    if epsilon < 0.0
+    {
+        panic!("invalid epsilon value");
+    }
+
+    curves.into_iter().map(|curve|
+    {
+        simplify_curve(curve, epsilon)
+    }).collect()
 }
