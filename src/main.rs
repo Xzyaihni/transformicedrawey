@@ -2,6 +2,10 @@ use std::{
     io,
     thread,
     process,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering}
+    },
     time::Duration
 };
 
@@ -387,21 +391,31 @@ fn main()
 
     line_drawer.foreground();
 
-    let cancel_thread = thread::spawn(||
-    {
-        let device_state = DeviceState::new();
+    let kill_state = Arc::new(AtomicBool::new(false));
+    let cancel_thread = {
+        let kill_state = kill_state.clone();
 
-        loop
+        thread::spawn(move ||
         {
-            if device_state.query_keymap().contains(&Keycode::Q)
-            {
-                println!("q press detected, aborting");
-                process::exit(1);
-            }
+            let device_state = DeviceState::new();
 
-            thread::sleep(Duration::from_millis(100));
-        }
-    });
+            loop
+            {
+                if kill_state.load(Ordering::Relaxed)
+                {
+                    return;
+                }
+
+                if device_state.query_keymap().contains(&Keycode::Q)
+                {
+                    println!("q press detected, aborting");
+                    process::exit(1);
+                }
+
+                thread::sleep(Duration::from_millis(100));
+            }
+        })
+    };
 
     for curve in curves
     {
@@ -411,5 +425,6 @@ fn main()
         }));
     }
 
+    kill_state.store(true, Ordering::Relaxed);
     cancel_thread.join().unwrap();
 }
