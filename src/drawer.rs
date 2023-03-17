@@ -18,6 +18,7 @@ pub struct LineDrawer
     width: f64,
     height: f64,
     delay: Duration,
+    move_delay: Duration,
     verbose: bool
 }
 
@@ -44,6 +45,7 @@ impl LineDrawer
             width: width as f64,
             height: height as f64,
             delay: Duration::from_secs_f64(delay),
+            move_delay: Duration::from_secs_f64(delay / 2.0),
             verbose
         })
     }
@@ -146,20 +148,22 @@ impl LineDrawer
 
         self.mouse_down();
 
-        thread::sleep(self.delay);
+        thread::sleep(self.move_delay);
 
         self.mouse_move(curve.next().unwrap());
 
         curve.for_each(|point|
         {
-            thread::sleep(self.delay);
+            thread::sleep(self.move_delay);
 
             self.mouse_move(point);
         });
 
-        thread::sleep(self.delay);
+        thread::sleep(self.move_delay);
 
         self.mouse_up();
+
+        thread::sleep(self.delay);
     }
 
     #[allow(dead_code)]

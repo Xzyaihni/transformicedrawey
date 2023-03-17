@@ -335,7 +335,7 @@ fn main()
 
     let time_to_draw: f64 = curves.iter().map(|curve|
     {
-        curve.len() as f64 * delay + delay
+        curve.len() as f64 * (delay / 2.0) + delay * 2.0
     }).sum();
 
     let create_line_drawer = ||
