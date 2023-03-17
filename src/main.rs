@@ -372,7 +372,7 @@ fn main()
     {
         println!("with {} curves", curves.len());
         println!("it will take {:.1} seconds to draw it", time_to_draw);
-        println!("you can quit at any time by pressing Q");
+        println!("you can quit at any time by pressing Q (or pause with P)");
         println!("proceed? [y/N]");
         let stdin = io::stdin();
 
@@ -412,16 +412,35 @@ fn main()
                     process::exit(1);
                 }
 
-                thread::sleep(Duration::from_millis(100));
+                thread::sleep(Duration::from_millis(50));
             }
         })
     };
 
+    let device_state = DeviceState::new();
     let map_point = |pos: Pos| Pos::new(canvas_x + pos.x * width, canvas_y + pos.y * height);
     if !show_area
     {
         for curve in curves
         {
+            if device_state.query_keymap().contains(&Keycode::P)
+            {
+                println!("paused, waiting 1 sec");
+
+                thread::sleep(Duration::from_secs(1));
+                println!("accepting unpause input");
+                loop
+                {
+                    if device_state.query_keymap().contains(&Keycode::P)
+                    {
+                        println!("unpaused");
+                        break;
+                    }
+
+                    thread::sleep(Duration::from_millis(50));
+                }
+            }
+
             line_drawer.draw_curve(curve.into_iter().map(map_point));
         }
     } else
