@@ -259,12 +259,12 @@ fn main()
 
         parser.refer(&mut max_width)
             .add_option(&["-W", "--width"], Store,
-            "canvas width (0.634)"
+            "canvas width (default 0.634)"
         );
 
         parser.refer(&mut max_height)
             .add_option(&["-H", "--height"], Store,
-            "canvas height (0.575)"
+            "canvas height (default 0.575)"
         );
         
         parser.refer(&mut path)
