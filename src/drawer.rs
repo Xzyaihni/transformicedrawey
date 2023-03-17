@@ -198,7 +198,7 @@ impl LineDrawer
             .unwrap().wait();
     }
 
-    fn mouse_move(&self, point: Pos)
+    pub fn mouse_move(&self, point: Pos)
     {
         let (x, y) = (
             (point.x * self.width + self.window_x) as usize,

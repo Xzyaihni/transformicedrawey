@@ -1,4 +1,4 @@
-use std::ops::{Index, Sub};
+use std::ops::{Index, Sub, Add};
 
 use super::FloatImage;
 
@@ -76,6 +76,16 @@ impl Sub for Pos
     fn sub(self, other: Self) -> Self::Output
     {
         Self{x: self.x - other.x, y: self.y - other.y}
+    }
+}
+
+impl Add for Pos
+{
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output
+    {
+        Self{x: self.x + other.x, y: self.y + other.y}
     }
 }
 

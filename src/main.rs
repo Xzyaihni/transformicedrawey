@@ -212,6 +212,7 @@ fn main()
     let mut delay = 0.03;
     let mut verbose = false;
     let mut save_edges = false;
+    let mut show_area = false;
 
     let mut window_name = "Transformice".to_owned();
 
@@ -240,6 +241,11 @@ fn main()
         parser.refer(&mut save_edges)
             .add_option(&["-s", "--save"], StoreTrue,
                 "save edges of a picture as edges.png"
+            );
+
+        parser.refer(&mut show_area)
+            .add_option(&["-A", "--area"], StoreTrue,
+                "hovers the mouse around the edges of the drawing area (for testing)"
             );
 
         parser.refer(&mut window_name)
@@ -362,19 +368,25 @@ fn main()
     let (canvas_x, canvas_y) = (canvas_x + offset_x * max_width, canvas_y + offset_y * max_height);
     let (width, height) = (width * max_width, height * max_height);
 
-    println!("with {} curves", curves.len());
-    println!("it will take {:.1} seconds to draw it", time_to_draw);
-    println!("you can quit at any time by pressing Q");
-    println!("proceed? [y/N]");
-    let stdin = io::stdin();
-
-    let mut reply = String::new();
-    stdin.read_line(&mut reply).unwrap();
-
-    let reply = reply.trim();
-    if reply.to_lowercase().as_str() != "y"
+    if !show_area
     {
-        return;
+        println!("with {} curves", curves.len());
+        println!("it will take {:.1} seconds to draw it", time_to_draw);
+        println!("you can quit at any time by pressing Q");
+        println!("proceed? [y/N]");
+        let stdin = io::stdin();
+
+        let mut reply = String::new();
+        stdin.read_line(&mut reply).unwrap();
+
+        let reply = reply.trim();
+        if reply.to_lowercase().as_str() != "y"
+        {
+            return;
+        }
+    } else
+    {
+        println!("you can quit at any time by pressing Q");
     }
 
     line_drawer.foreground();
@@ -405,12 +417,51 @@ fn main()
         })
     };
 
-    for curve in curves
+    let map_point = |pos: Pos| Pos::new(canvas_x + pos.x * width, canvas_y + pos.y * height);
+    if !show_area
     {
-        line_drawer.draw_curve(curve.into_iter().map(|Pos{x, y}|
+        for curve in curves
         {
-            Pos::new(canvas_x + x * width, canvas_y + y * height)
-        }));
+            line_drawer.draw_curve(curve.into_iter().map(map_point));
+        }
+    } else
+    {
+        let speed = 0.01;
+        let mut moving_direction = Pos::new(speed, 0.0);
+
+        let mut current_pos = Pos::new(0.0, 0.0);
+
+        loop
+        {
+            line_drawer.mouse_move(map_point(current_pos));
+            current_pos = current_pos + moving_direction;
+
+            if current_pos.x > 1.0
+            {
+                current_pos.x = 1.0;
+                moving_direction = Pos::new(0.0, speed);
+            }
+
+            if current_pos.y > 1.0
+            {
+                current_pos.y = 1.0;
+                moving_direction = Pos::new(-speed, 0.0);
+            }
+
+            if current_pos.x < 0.0
+            {
+                current_pos.x = 0.0;
+                moving_direction = Pos::new(0.0, -speed);
+            }
+
+            if current_pos.y < 0.0
+            {
+                current_pos.y = 0.0;
+                moving_direction = Pos::new(speed, 0.0);
+            }
+
+            thread::sleep(Duration::from_millis(20));
+        }
     }
 
     kill_state.store(true, Ordering::Relaxed);
