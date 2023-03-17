@@ -338,11 +338,16 @@ fn main()
         curve.len() as f64 * delay + delay
     }).sum();
 
-    let line_drawer = LineDrawer::new(&window_name, delay, verbose).unwrap_or_else(||
+    let create_line_drawer = ||
     {
-        eprintln!("window not found, is it open and visible?");
-        process::exit(3);
-    });
+        LineDrawer::new(&window_name, delay, verbose).unwrap_or_else(||
+        {
+            eprintln!("window not found, is it open and visible?");
+            process::exit(3);
+        })
+    };
+
+    let mut line_drawer = create_line_drawer();
 
     let canvas_aspect = max_width / max_height;
 
@@ -433,6 +438,9 @@ fn main()
                 {
                     if device_state.query_keymap().contains(&Keycode::P)
                     {
+                        line_drawer = create_line_drawer();
+                        line_drawer.foreground();
+
                         println!("unpaused");
                         break;
                     }
