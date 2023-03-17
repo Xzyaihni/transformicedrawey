@@ -331,7 +331,10 @@ fn main()
     }
 
     let mut curves = contour::contours(&thinned, epsilon);
-    curves.sort_by(|x, y| y.len().cmp(&x.len()));
+    curves.sort_by(|x, y|
+    {
+        y.curve_length().total_cmp(&x.curve_length())
+    });
 
     let time_to_draw: f64 = curves.iter().map(|curve|
     {

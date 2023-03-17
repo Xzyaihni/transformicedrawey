@@ -28,6 +28,16 @@ impl Curve
         Self::new(self.points[start..end].to_vec())
     }
 
+    pub fn curve_length(&self) -> f64
+    {
+        self.points.iter().fold((self.points[0], 0.0), |(previous, acc), current|
+        {
+            let line_length = (*current - previous).magnitude();
+
+            (*current, acc + line_length)
+        }).1
+    }
+
     pub fn len(&self) -> usize
     {
         self.points.len()
