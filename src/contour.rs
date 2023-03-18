@@ -150,7 +150,7 @@ impl BinaryImage
 
     fn index_of(&self, x: i32, y: i32) -> Option<usize>
     {
-        if x < 0 || x >= self.width as i32 || y < 0 || y >= self.height as i32
+        if !(0..self.width as i32).contains(&x) || !(0..self.height as i32).contains(&y)
         {
             None
         } else
@@ -198,7 +198,7 @@ pub fn contours(image: &FloatImage, epsilon: f64) -> Vec<Curve>
     let mut image = BinaryImage::new(
         image.data.iter().map(|pixel|
         {
-            if *pixel > 0.5 {1} else {0}
+            (*pixel > 0.5) as i32
         }),
         image.width() as usize, image.height() as usize
     );
@@ -215,7 +215,7 @@ pub fn contours(image: &FloatImage, epsilon: f64) -> Vec<Curve>
 
             let current_pixel = image.get(x, y);
 
-            if current_pixel > 1 || current_pixel < 0
+            if !(0..=1).contains(&current_pixel)
             {
                 lnbd = current_pixel;
             }
@@ -327,22 +327,16 @@ fn contour_trace(image: &mut BinaryImage, x: i32, y: i32, nbd: i32)
         }
     }
 
-    loop
+    while let Some(found) = contour_trace3(image, start_pixel, follow_pixel, x, y)
     {
-        if let Some(found) = contour_trace3(&image, start_pixel, follow_pixel, x, y)
-        {
-            contour_trace4(image, follow_pixel, x, y, nbd);
+        contour_trace4(image, follow_pixel, x, y, nbd);
 
-            if !contour_trace5(
-                found,
-                &mut follow_pixel,
-                &mut start_pixel,
-                found_neighbor
-            )
-            {
-                break;
-            }
-        } else
+        if !contour_trace5(
+            found,
+            &mut follow_pixel,
+            &mut start_pixel,
+            found_neighbor
+        )
         {
             break;
         }
@@ -376,7 +370,7 @@ fn contour_trace3(
         }
     }
 
-    return None;
+    None
 }
 
 fn contour_trace4(image: &mut BinaryImage, follow_pixel: (i32, i32), x: i32, y: i32, nbd: i32)
