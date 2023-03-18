@@ -209,7 +209,7 @@ fn main()
 {
     let mut path = String::new();
     let mut epsilon = 0.01;
-    let mut delay = 0.03;
+    let mut delay = 0.05;
     let mut verbose = false;
     let mut save_edges = false;
     let mut show_area = false;
@@ -230,7 +230,7 @@ fn main()
 
         parser.refer(&mut delay)
             .add_option(&["-d", "--delay"], Store,
-                "delay between each action in seconds (default 0.03)"
+                "delay between each action in seconds (default 0.05)"
             );
 
         parser.refer(&mut verbose)
