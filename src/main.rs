@@ -209,7 +209,7 @@ fn main()
 {
     let mut path = String::new();
     let mut epsilon = 0.01;
-    let mut minimum_length = 0.03;
+    let mut minimum_length = 0.0;
     let mut threshold = 0.5;
     let mut delay = 0.05;
     let mut verbose = false;
