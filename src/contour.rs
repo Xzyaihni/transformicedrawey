@@ -193,12 +193,12 @@ impl BinaryImage
     }
 }
 
-pub fn contours(image: &FloatImage, epsilon: f64) -> Vec<Curve>
+pub fn contours(image: &FloatImage, threshold: f64, epsilon: f64) -> Vec<Curve>
 {
     let mut image = BinaryImage::new(
         image.data.iter().map(|pixel|
         {
-            (*pixel > 0.5) as i32
+            (*pixel > threshold) as i32
         }),
         image.width() as usize, image.height() as usize
     );

@@ -210,6 +210,7 @@ fn main()
     let mut path = String::new();
     let mut epsilon = 0.01;
     let mut minimum_length = 0.03;
+    let mut threshold = 0.5;
     let mut delay = 0.05;
     let mut verbose = false;
     let mut save_edges = false;
@@ -223,6 +224,7 @@ fn main()
     // wouldve been easier to use my own, better, args parser :/
     let epsilon_d = format!("epsilon for line simplification (default {epsilon})");
     let length_d = format!("minimum length for a line (default {minimum_length})");
+    let threshold_d = format!("threshold for edge detection (default {threshold})");
     let delay_d = format!("delay between each action in seconds (default {delay})");
     let canvas_x_d = format!("canvas x starting point (default {canvas_x})");
     let canvas_y_d = format!("canvas y starting point (default {canvas_y})");
@@ -241,6 +243,11 @@ fn main()
         parser.refer(&mut minimum_length)
             .add_option(&["-l", "--length"], Store,
                 &length_d
+            );
+
+        parser.refer(&mut threshold)
+            .add_option(&["-t", "--threshold"], Store,
+                &threshold_d
             );
 
         parser.refer(&mut delay)
@@ -345,7 +352,7 @@ fn main()
         thinned.save("edges.png");
     }
 
-    let mut curves = contour::contours(&thinned, epsilon);
+    let mut curves = contour::contours(&thinned, threshold, epsilon);
     curves.sort_by(|x, y|
     {
         y.curve_length().total_cmp(&x.curve_length())
