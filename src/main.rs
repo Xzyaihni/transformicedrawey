@@ -372,9 +372,7 @@ fn main()
 
     let mut line_drawer = create_line_drawer();
 
-    let canvas_aspect = max_width / max_height;
-
-    let width = image_width as f64 / canvas_aspect;
+    let width = image_width as f64;
     let height = image_height as f64;
 
     let (width, height) = if width > height
