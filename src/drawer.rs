@@ -26,27 +26,28 @@ impl LineDrawer
 {
     pub fn new(name: &str, delay: f64, verbose: bool) -> Option<Self>
     {
-        let window_id = Self::window_id(name)?;
-
-        let (window_x, window_y) = Self::window_position(window_id);
-        let (width, height) = Self::window_size(window_id);
-
-        if verbose
+        Self::window_ids(name).into_iter().find_map(|window_id|
         {
-            eprintln!("window id: {window_id}");
-            eprintln!("window x: {window_x}, window y: {window_y}");
-            eprintln!("window width: {width}, window height: {height}");
-        }
+            let (window_x, window_y) = Self::window_position(window_id)?;
+            let (width, height) = Self::window_size(window_id)?;
 
-        Some(Self{
-            window_id,
-            window_x: window_x as f64,
-            window_y: window_y as f64,
-            width: width as f64,
-            height: height as f64,
-            delay: Duration::from_secs_f64(delay),
-            move_delay: Duration::from_secs_f64(delay / 2.0),
-            verbose
+            if verbose
+            {
+                eprintln!("window id: {window_id}");
+                eprintln!("window x: {window_x}, window y: {window_y}");
+                eprintln!("window width: {width}, window height: {height}");
+            }
+
+            Some(Self{
+                window_id,
+                window_x: window_x as f64,
+                window_y: window_y as f64,
+                width: width as f64,
+                height: height as f64,
+                delay: Duration::from_secs_f64(delay),
+                move_delay: Duration::from_secs_f64(delay / 2.0),
+                verbose
+            })
         })
     }
 
@@ -75,7 +76,7 @@ impl LineDrawer
         String::from_utf8_lossy(&bytes.unwrap()).into_owned()
     }
 
-    fn parse_info(text: &str, name: &str) -> (u64, u64)
+    fn parse_info(text: &str, name: &str) -> Option<(u64, u64)>
     {
         let find_text = name;
         let position_index = text.find(find_text).unwrap();
@@ -113,31 +114,28 @@ impl LineDrawer
             }
         }
 
-        (x.trim().parse().unwrap(), y.trim().parse().unwrap())
+        Some((x.trim().parse().ok()?, y.trim().parse().ok()?))
     }
 
-    fn window_position(id: u64) -> (u64, u64)
+    fn window_position(id: u64) -> Option<(u64, u64)>
     {
-        let outputs =
-        Self::command_outputs("xdotool", &["getwindowgeometry", &id.to_string()]);
+        let outputs = Self::command_outputs("xdotool", &["getwindowgeometry", &id.to_string()]);
 
         Self::parse_info(&outputs, "Position: ")
     }
 
-    fn window_size(id: u64) -> (u64, u64)
+    fn window_size(id: u64) -> Option<(u64, u64)>
     {
-        let outputs =
-        Self::command_outputs("xdotool", &["getwindowgeometry", &id.to_string()]);
+        let outputs = Self::command_outputs("xdotool", &["getwindowgeometry", &id.to_string()]);
 
         Self::parse_info(&outputs, "Geometry: ")
     }
 
-    fn window_id(name: &str) -> Option<u64>
+    fn window_ids(name: &str) -> Vec<u64>
     {
-        let outputs =
-        Self::command_outputs("xdotool", &["search", "--onlyvisible", "--class", name]);
+        let outputs = Self::command_outputs("xdotool", &["search", "--onlyvisible", "--class", name]);
 
-        outputs.trim().parse().ok()
+        outputs.lines().filter_map(|x| x.trim().parse().ok()).collect()
     }
 
     pub fn draw_curve(&self, mut curve: impl Iterator<Item=Pos>)
