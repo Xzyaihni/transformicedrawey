@@ -209,6 +209,7 @@ fn main()
 {
     let mut path = String::new();
     let mut epsilon = 0.01;
+    let mut minimum_length = 0.03;
     let mut delay = 0.05;
     let mut verbose = false;
     let mut save_edges = false;
@@ -219,18 +220,32 @@ fn main()
     let (mut canvas_x, mut canvas_y) = (0.184, 0.063);
     let (mut max_width, mut max_height) = (0.634, 0.575);
 
+    // wouldve been easier to use my own, better, args parser :/
+    let epsilon_d = format!("epsilon for line simplification (default {epsilon})");
+    let length_d = format!("minimum length for a line (default {minimum_length})");
+    let delay_d = format!("delay between each action in seconds (default {delay})");
+    let canvas_x_d = format!("canvas x starting point (default {canvas_x})");
+    let canvas_y_d = format!("canvas y starting point (default {canvas_y})");
+    let max_width_d = format!("canvas width (default {max_width})");
+    let max_height_d = format!("canvas height (default {max_height})");
+
     {
         let mut parser = ArgumentParser::new();
 
         parser.refer(&mut epsilon)
             .add_option(&["-e", "--epsilon"],
                 Store,
-                "epsilon for line simplification (default 0.01)"
+                &epsilon_d
+            );
+
+        parser.refer(&mut minimum_length)
+            .add_option(&["-l", "--length"], Store,
+                &length_d
             );
 
         parser.refer(&mut delay)
             .add_option(&["-d", "--delay"], Store,
-                "delay between each action in seconds (default 0.05)"
+                &delay_d
             );
 
         parser.refer(&mut verbose)
@@ -255,24 +270,24 @@ fn main()
 
         parser.refer(&mut canvas_x)
             .add_option(&["-X", "--canvasx"], Store,
-            "canvas x starting point (default 0.184)"
+            &canvas_x_d
         );
-        
+
         parser.refer(&mut canvas_y)
             .add_option(&["-Y", "--canvasy"], Store,
-            "canvas y starting point (default 0.063)"
+            &canvas_y_d
         );
 
         parser.refer(&mut max_width)
             .add_option(&["-W", "--width"], Store,
-            "canvas width (default 0.634)"
+            &max_width_d
         );
 
         parser.refer(&mut max_height)
             .add_option(&["-H", "--height"], Store,
-            "canvas height (default 0.575)"
+            &max_height_d
         );
-        
+
         parser.refer(&mut path)
             .add_option(&["-i", "--input"], Store, "path to the image file")
             .add_argument("image_path", Store, "path to the image file")
@@ -335,6 +350,11 @@ fn main()
     {
         y.curve_length().total_cmp(&x.curve_length())
     });
+
+    if let Some(index) = curves.iter().map(|x| x.curve_length()).position(|x| x < minimum_length)
+    {
+        curves.truncate(index);
+    }
 
     let time_to_draw: f64 = curves.iter().map(|curve|
     {
